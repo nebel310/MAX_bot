@@ -1,25 +1,23 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
 
 
-class SUserRegister(BaseModel):
+class SUserAuth(BaseModel):
+    max_user_id: str
     username: str
-    email: EmailStr
-    password: str
-    password_confirm: str
-
-
-class SUserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
 
 class SUser(BaseModel):
     id: int
+    max_user_id: str
     username: str
-    email: EmailStr
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SUserSession(BaseModel):
+    session_token: str
+    user: SUser

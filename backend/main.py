@@ -5,10 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import create_tables, delete_tables
 from router.auth import router as auth_router
-
-from fastapi import APIRouter
-from repositories.auth import UserRepository
-from schemas.auth import SUserRegister
+from router.city import router as city_router
+from router.tag import router as tag_router
 
 
 
@@ -27,9 +25,9 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
-        title="Your App",
+        title="MAX Bot API",
         version="1.0.0",
-        description="Base nebel's FastApi template with JWT Auth",
+        description="Backend for MAX Bot - volunteer management system",
         routes=app.routes,
     )
     openapi_schema["components"]["securitySchemes"] = {
@@ -40,15 +38,31 @@ def custom_openapi():
         }
     }
     
-    secured_paths = {
-        #Авторизация
-        "/auth/me": {"method": "get", "security": [{"Bearer": []}]},
-        "/auth/logout": {"method": "post", "security": [{"Bearer": []}]},
-    }
+    secured_paths = [
+        {"path": "/auth/me", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/auth/logout", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/user/profile", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/user/profile/update", "method": "put", "security": [{"Bearer": []}]},
+        {"path": "/user/interests", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/user/my-applications", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/user/leaderboard", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/events/create", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/events/my-events", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/events/{event_id}/update", "method": "put", "security": [{"Bearer": []}]},
+        {"path": "/events/{event_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
+        {"path": "/applications/create", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/admin/applications", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/applications/{application_id}/update", "method": "put", "security": [{"Bearer": []}]},
+        {"path": "/admin/admin-events", "method": "get", "security": [{"Bearer": []}]},
+    ]
     
-    for path, config in secured_paths.items():
-        if path in openapi_schema["paths"]:
-            openapi_schema["paths"][path][config["method"]]["security"] = config["security"]
+    for item in secured_paths:
+        path = item["path"]
+        method = item["method"]
+        security = item["security"]
+        
+        if path in openapi_schema["paths"] and method in openapi_schema["paths"][path]:
+            openapi_schema["paths"][path][method]["security"] = security
     
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -56,53 +70,26 @@ def custom_openapi():
 
 app = FastAPI(lifespan=lifespan)
 app.openapi = custom_openapi
+
 app.include_router(auth_router)
+app.include_router(city_router)
+app.include_router(tag_router)
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500"],  # Тут адрес фронтенда
+    allow_origins=["http://127.0.0.1:5500"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-init_router = APIRouter()
 
-@init_router.post("/init-test-data")
-async def init_test_data():
-    test_users = [
-        {
-            "username": "string",
-            "email": "user@example.com", 
-            "password": "string",
-            "password_confirm": "string"
-        },
-        {
-            "username": "admin",
-            "email": "admin@admin.com",
-            "password": "admin",
-            "password_confirm": "admin"
-        }
-    ]
-    
-    for user in test_users:
-        # Преобразуем словарь в SUserRegister
-        user_data = SUserRegister(**user)
-        await UserRepository.register_user(user_data)
-    
-    return {"message": "Тестовые данные созданы"}
-
-app.include_router(init_router)
-
-
-
-#Раскоментить, когда будешь писать докер.
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         reload=True,
         port=3001,
         host="0.0.0.0"
-    )
+    )   
