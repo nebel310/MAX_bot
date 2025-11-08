@@ -1,7 +1,6 @@
 from database import new_session
 from models.city import CityOrm
 from models.tag import TagOrm
-from sqlalchemy import select
 
 
 
@@ -9,10 +8,6 @@ from sqlalchemy import select
 async def init_cities():
     """Инициализация тестовых городов"""
     async with new_session() as session:
-        existing_cities = await session.execute(select(CityOrm))
-        if existing_cities.scalars().first():
-            return
-        
         cities = [
             CityOrm(name="Москва"),
             CityOrm(name="Санкт-Петербург"),
@@ -26,10 +21,6 @@ async def init_cities():
 async def init_tags():
     """Инициализация тестовых тегов"""
     async with new_session() as session:
-        existing_tags = await session.execute(select(TagOrm))
-        if existing_tags.scalars().first():
-            return
-        
         tags = [
             TagOrm(name="Экология"),
             TagOrm(name="Образование"),

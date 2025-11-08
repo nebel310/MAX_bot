@@ -7,6 +7,7 @@ from database import create_tables, delete_tables
 from router.auth import router as auth_router
 from router.city import router as city_router
 from router.tag import router as tag_router
+from router.user import router as user_router
 from init_test_data import init_all_test_data
 
 
@@ -46,8 +47,8 @@ def custom_openapi():
         {"path": "/user/profile", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/user/profile/update", "method": "put", "security": [{"Bearer": []}]},
         {"path": "/user/interests", "method": "post", "security": [{"Bearer": []}]},
-        {"path": "/user/my-applications", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/user/leaderboard", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/user/my-applications", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/events/create", "method": "post", "security": [{"Bearer": []}]},
         {"path": "/events/my-events", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/events/{event_id}/update", "method": "put", "security": [{"Bearer": []}]},
@@ -76,6 +77,7 @@ app.openapi = custom_openapi
 app.include_router(auth_router)
 app.include_router(city_router)
 app.include_router(tag_router)
+app.include_router(user_router)
 
 
 app.add_middleware(
