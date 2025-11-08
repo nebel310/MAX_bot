@@ -7,6 +7,7 @@ from database import create_tables, delete_tables
 from router.auth import router as auth_router
 from router.city import router as city_router
 from router.tag import router as tag_router
+from init_test_data import init_all_test_data
 
 
 
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
     print('База очищена')
     await create_tables()
     print('База готова к работе')
+    await init_all_test_data()
     yield
     print('Выключение')
 
@@ -92,4 +94,4 @@ if __name__ == "__main__":
         reload=True,
         port=3001,
         host="0.0.0.0"
-    )   
+    )
