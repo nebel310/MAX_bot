@@ -46,6 +46,8 @@ def custom_openapi():
         {"path": "/auth/logout", "method": "post", "security": [{"Bearer": []}]},
         {"path": "/user/profile", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/user/profile/update", "method": "put", "security": [{"Bearer": []}]},
+        {"path": "/user/profile/update", "method": "patch", "security": [{"Bearer": []}]},
+        {"path": "/user/profile/full-update", "method": "patch", "security": [{"Bearer": []}]},
         {"path": "/user/interests", "method": "post", "security": [{"Bearer": []}]},
         {"path": "/user/leaderboard", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/user/my-applications", "method": "get", "security": [{"Bearer": []}]},

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from repositories.user import UserProfileRepository
 from schemas.user import (
-    SUserProfile, SUserProfileCreate, SUserProfileUpdate, 
+    SUserProfile, SUserProfileCreate, SUserProfileUpdate, SUserProfileFullUpdate,
     SUserProfileWithInterests, SUserInterestCreate, SLeaderboard
 )
 from models.auth import UserOrm
@@ -46,9 +46,67 @@ async def update_user_profile(
     profile_data: SUserProfileUpdate,
     current_user: UserOrm = Depends(get_current_user)
 ):
-    """Обновить профиль пользователя (только город и описание)"""
+    """Полное обновление профиля пользователя
+    
+    Обновляет все переданные поля. Поля, которые не переданы, будут установлены в null.
+    Доступные поля: city_id, about_me
+    """
     try:
         profile = await UserProfileRepository.update_profile(current_user.id, profile_data)
+        return profile
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Ошибка при обновлении профиля")
+
+
+@router.patch("/profile/update", response_model=SUserProfile)
+async def partial_update_user_profile(
+    profile_data: SUserProfileUpdate,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """Частичное обновление профиля пользователя
+    
+    Обновляет только переданные поля. Поля, которые не переданы, остаются без изменений.
+    Доступные поля: city_id, about_me
+    
+    Примеры использования:
+    - Обновить только город: `{"city_id": 1}`
+    - Обновить только описание: `{"about_me": "Новое описание"}`
+    - Обновить и город и описание: `{"city_id": 2, "about_me": "Новое описание"}`
+    - Оставить без изменений: `{}`
+    """
+    try:
+        profile = await UserProfileRepository.partial_update_profile(current_user.id, profile_data)
+        return profile
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Ошибка при обновлении профиля")
+
+
+@router.patch("/profile/full-update", response_model=SUserProfile)
+async def full_update_user_profile(
+    profile_data: SUserProfileFullUpdate,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """Полное обновление профиля пользователя (сервисный эндпоинт)
+    
+    ОБНОВЛЯЕТ ЛЮБЫЕ ПОЛЯ ПРОФИЛЯ, включая системные (рейтинг, счетчик участий).
+    Используется для отладки и специальных случаев разработчиком бота.
+    
+    Все поля опциональны. Если поле не передано, оно остается без изменений.
+    
+    Доступные поля:
+    - city_id: ID города
+    - about_me: Описание о себе  
+    - rating: Рейтинг пользователя (системное поле)
+    - participation_count: Количество участий (системное поле)
+    
+    Примеры использования:
+    - Обновить рейтинг: `{"rating": 100}`
+    - Обновить счетчик участий: `{"participation_count": 5}`
+    - Обновить все поля: `{"city_id": 1, "about_me": "Новое описание", "rating": 50, "participation_count": 3}`
+    - Обновить несколько полей: `{"city_id": 2, "rating": 75}`
+    """
+    try:
+        profile = await UserProfileRepository.full_update_profile(current_user.id, profile_data)
         return profile
     except Exception as e:
         raise HTTPException(status_code=500, detail="Ошибка при обновлении профиля")

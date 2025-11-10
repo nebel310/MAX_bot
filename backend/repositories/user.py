@@ -2,8 +2,8 @@ from database import new_session
 from models.user_profile import UserProfileOrm, UserInterestOrm
 from models.auth import UserOrm
 from models.tag import TagOrm
-from schemas.user import SUserProfileCreate, SUserInterestCreate, SUserProfileUpdate
-from sqlalchemy import select, delete, update, func
+from schemas.user import SUserProfileCreate, SUserProfileUpdate, SUserProfileFullUpdate, SUserInterestCreate
+from sqlalchemy import select, delete, update, func, and_
 from sqlalchemy.exc import IntegrityError
 
 
@@ -51,6 +51,61 @@ class UserProfileRepository:
                 await session.refresh(profile)
                 return profile
             return await cls.get_profile_by_user_id(profile_data.user_id)
+    
+    
+    @classmethod
+    async def update_profile(cls, user_id: int, profile_data: SUserProfileUpdate):
+        """Обновить профиль пользователя (только разрешенные поля)"""
+        async with new_session() as session:
+            update_data = {}
+            if profile_data.city_id is not None:
+                update_data["city_id"] = profile_data.city_id
+            if profile_data.about_me is not None:
+                update_data["about_me"] = profile_data.about_me
+            
+            if update_data:
+                stmt = (
+                    update(UserProfileOrm)
+                    .where(UserProfileOrm.user_id == user_id)
+                    .values(**update_data)
+                )
+                await session.execute(stmt)
+                await session.commit()
+            
+            return await cls.get_profile_by_user_id(user_id)
+    
+    
+    @classmethod
+    async def partial_update_profile(cls, user_id: int, profile_data: SUserProfileUpdate):
+        """Частичное обновление профиля пользователя"""
+        return await cls.update_profile(user_id, profile_data)
+    
+    
+    @classmethod
+    async def full_update_profile(cls, user_id: int, profile_data: SUserProfileFullUpdate):
+        """Полное обновление профиля пользователя (все поля)"""
+        async with new_session() as session:
+            update_data = {}
+            
+            if profile_data.city_id is not None:
+                update_data["city_id"] = profile_data.city_id
+            if profile_data.about_me is not None:
+                update_data["about_me"] = profile_data.about_me
+            if profile_data.rating is not None:
+                update_data["rating"] = profile_data.rating
+            if profile_data.participation_count is not None:
+                update_data["participation_count"] = profile_data.participation_count
+            
+            if update_data:
+                stmt = (
+                    update(UserProfileOrm)
+                    .where(UserProfileOrm.user_id == user_id)
+                    .values(**update_data)
+                )
+                await session.execute(stmt)
+                await session.commit()
+            
+            return await cls.get_profile_by_user_id(user_id)
     
     
     @classmethod
@@ -138,19 +193,6 @@ class UserProfileRepository:
     
     
     @classmethod
-    async def increment_participation_count(cls, user_id: int):
-        """Увеличить счетчик участий пользователя"""
-        async with new_session() as session:
-            stmt = (
-                update(UserProfileOrm)
-                .where(UserProfileOrm.user_id == user_id)
-                .values(participation_count=UserProfileOrm.participation_count + 1)
-            )
-            await session.execute(stmt)
-            await session.commit()
-    
-    
-    @classmethod
     async def update_rating(cls, user_id: int, rating_change: int):
         """Обновить рейтинг пользователя (внутренний метод)"""
         async with new_session() as session:
@@ -174,25 +216,3 @@ class UserProfileRepository:
             )
             await session.execute(stmt)
             await session.commit()
-    
-    
-    @classmethod
-    async def update_profile(cls, user_id: int, profile_data: SUserProfileUpdate):
-        """Обновить профиль пользователя (только разрешенные поля)"""
-        async with new_session() as session:
-            update_data = {}
-            if profile_data.city_id is not None:
-                update_data["city_id"] = profile_data.city_id
-            if profile_data.about_me is not None:
-                update_data["about_me"] = profile_data.about_me
-            
-            if update_data:
-                stmt = (
-                    update(UserProfileOrm)
-                    .where(UserProfileOrm.user_id == user_id)
-                    .values(**update_data)
-                )
-                await session.execute(stmt)
-                await session.commit()
-            
-            return await cls.get_profile_by_user_id(user_id)
