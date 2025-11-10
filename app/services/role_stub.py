@@ -10,8 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import Dict, Any
-import json
-import time
 
 class UserRole(str, Enum):
     NEED_HELP = "need_help"
@@ -23,20 +21,60 @@ class UserRoleRecord:
     role: UserRole
     updated_at: float
 
-# In-memory store: user_id -> record
+# ====== IN-MEMORY STORE ======
+
 _store: Dict[int, UserRoleRecord] = {}
 _start_message_ids: Dict[int, int] = {}
 
-# ---------- Public API (replace these later) ---------- #
+# ====== MOCK DATA (будет заменено на данные с backend) ======
 
-def set_role(user_id: int, role: UserRole) -> UserRoleRecord:
-    rec = UserRoleRecord(user_id=user_id, role=role, updated_at=time.time())
-    _store[user_id] = rec
-    return rec
+MOCK_FEED_MESSAGE = """Заявки в Москве по вашим интересам 🌿👶:
 
-def get_role(user_id: int) -> UserRole | None:
+📌 Совпадение 95% 
+
+[Экология, Дети] Субботник в детском парке
+
+Фонд: "Город детям", 📅 15 апреля
+
+📌 Совпадение 80%
+
+[Экология] Уборка берега реки
+
+Фонд: "Чистый город", 📅 17 апреля
+
+📌 Совпадение 60% 
+
+[Животные] Помощь в приюте для собак
+
+Фонд: "Лапа друга", 📅 20 апреля"""
+
+MOCK_REQUEST_DETAILS = """🍃 Субботник в парке "Зеленый"
+
+Описание: Нужна помощь в уборке территории, посадке деревьев.
+
+Тип: Волонтеры
+
+Дата: 15 апреля, 10:00
+
+Адрес: ул. Парковая, 15
+
+Контакт: @ecomir_contact
+
+Что делать: Приходите по адресу в указанное время."""
+
+# ====== PUBLIC API ======
+
+def set_role(user_id: int, role: str) -> None:
+    import time
+    _store[user_id] = UserRoleRecord(
+        user_id=user_id,
+        role=UserRole(role),
+        updated_at=time.time()
+    )
+
+def get_role(user_id: int) -> str | None:
     rec = _store.get(user_id)
-    return rec.role if rec else None
+    return rec.role.value if rec else None
 
 def set_start_message_id(user_id: int, message_id: int) -> None:
     _start_message_ids[user_id] = message_id
@@ -45,18 +83,11 @@ def get_start_message_id(user_id: int) -> int | None:
     return _start_message_ids.get(user_id)
 
 def to_json() -> str:
-    payload = [asdict(r) for r in _store.values()]
-    return json.dumps(payload, ensure_ascii=False, indent=2)
+    import json
+    return json.dumps([asdict(rec) for rec in _store.values()], indent=2)
 
 def load_json(data: str) -> None:
-    loaded = json.loads(data)
-    for item in loaded:
-        role = UserRole(item["role"])  # validate
-        rec = UserRoleRecord(user_id=int(item["user_id"]), role=role, updated_at=float(item["updated_at"]))
-        _store[rec.user_id] = rec
-
-# Convenience sample for manual testing
-if __name__ == "__main__":
-    set_role(123, UserRole.NEED_HELP)
-    set_role(777, UserRole.WANT_HELP)
-    print(to_json())
+    import json
+    records = json.loads(data)
+    for rec in records:
+        _store[rec["user_id"]] = UserRoleRecord(**rec)
