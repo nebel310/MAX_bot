@@ -146,7 +146,13 @@ async def update_application(
     application_data: SApplicationUpdate,
     current_user: UserOrm = Depends(get_current_user)
 ):
-    """Обновить отклик (только создатель события)"""
+    """Обновить отклик (только создатель события) \n
+    Возможные статусы откликов:
+    - pending (отправлено)
+    - approved (подтвержден к участию)
+    - rejected (отклонен + надо указать причину отказа)
+    - participated (принял участие | после ивента админ подтверждает что волонтер принял участие)
+    """
     try:
         application = await ApplicationRepository.update_application(application_id, application_data, current_user.id)
         return application
