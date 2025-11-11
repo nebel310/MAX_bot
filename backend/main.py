@@ -68,6 +68,8 @@ def custom_openapi():
         {"path": "/applications/{application_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
         {"path": "/admin/applications/statistics", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/admin/my-events", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/events/{event_id}/approved-volunteers", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/events/{event_id}/confirm-participation", "method": "post", "security": [{"Bearer": []}]},
         {"path": "/admin/admins/create", "method": "post", "security": [{"Bearer": []}]},
         {"path": "/admin/admins/{max_user_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
         {"path": "/admin/admins", "method": "get", "security": [{"Bearer": []}]},

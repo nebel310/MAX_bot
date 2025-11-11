@@ -51,3 +51,8 @@ class SApplicationListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class SParticipationConfirm(BaseModel):
+    user_ids: List[int] = Field(description="Список ID пользователей, которые участвовали")
+    rating_points: int = Field(default=10, description="Баллы рейтинга за участие")

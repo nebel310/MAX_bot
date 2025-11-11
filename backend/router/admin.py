@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from repositories.admin import AdminRepository
 from repositories.admin_application import AdminApplicationRepository
 from repositories.event import EventRepository
+from repositories.application import ApplicationRepository
 from schemas.admin import SAdminCreate, SAdmin, SUserWithRole
 from schemas.event import SEventListResponse, SEventWithTags
+from schemas.application import SParticipationConfirm
 from models.auth import UserOrm
 from utils.security import get_current_user
 from utils.admin_security import get_current_admin, get_user_with_role
@@ -74,6 +76,67 @@ async def get_admin_events(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Ошибка при получении событий")
+
+
+@router.get("/events/{event_id}/approved-volunteers")
+async def get_approved_volunteers(
+    event_id: int,
+    current_admin: UserOrm = Depends(get_current_admin)
+):
+    """Получить список подтвержденных волонтеров для события"""
+    try:
+        approved_applications = await ApplicationRepository.get_approved_applications_for_event(event_id, current_admin.id)
+        
+        volunteers = []
+        for app_data in approved_applications:
+            volunteers.append({
+                "user_id": app_data["application"].user_id,
+                "username": app_data["username"],
+                "application_id": app_data["application"].id,
+                "current_rating": app_data["current_rating"],
+                "current_participation_count": app_data["current_participation_count"],
+                "applied_at": app_data["application"].applied_at
+            })
+        
+        return {
+            "event_id": event_id,
+            "volunteers": volunteers,
+            "total_count": len(volunteers)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Ошибка при получении списка волонтеров")
+
+
+@router.post("/events/{event_id}/confirm-participation")
+async def confirm_participation(
+    event_id: int,
+    participation_data: SParticipationConfirm,
+    current_admin: UserOrm = Depends(get_current_admin)
+):
+    """Подтвердить участие волонтеров в событии и начислить рейтинг"""
+    try:
+        if not participation_data.user_ids:
+            raise HTTPException(status_code=400, detail="Список пользователей не может быть пустым")
+        
+        updated_users = await ApplicationRepository.confirm_participation(
+            event_id, 
+            participation_data.user_ids, 
+            participation_data.rating_points,
+            current_admin.id
+        )
+        
+        return {
+            "success": True,
+            "message": f"Участие подтверждено для {len(updated_users)} волонтеров",
+            "updated_users": updated_users,
+            "rating_points_added": participation_data.rating_points
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Ошибка при подтверждении участия")
 
 
 @router.post("/admins/create", response_model=SAdmin)
