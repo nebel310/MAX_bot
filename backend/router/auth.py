@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from schemas.auth import SUserAuth, SUserSession, SUser
+from schemas.admin import SUserWithRole
 from repositories.auth import UserRepository
+from repositories.admin import AdminRepository
 from models.auth import UserOrm
 from utils.security import get_current_user, get_session_token
 
@@ -38,7 +40,7 @@ async def logout(session_token: str = Depends(get_session_token)):
         raise HTTPException(status_code=500, detail="Ошибка при выходе из системы")
 
 
-@router.get("/me", response_model=SUser)
+@router.get("/me", response_model=SUserWithRole)
 async def get_current_user_info(current_user: UserOrm = Depends(get_current_user)):
-    """Получить информацию о текущем пользователе"""
-    return current_user
+    """Получить информацию о текущем пользователе с указанием роли"""
+    return await AdminRepository.get_user_with_role(current_user)

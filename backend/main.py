@@ -10,6 +10,7 @@ from router.tag import router as tag_router
 from router.user import router as user_router
 from router.event import router as event_router
 from router.application import router as application_router
+from router.admin import router as admin_router
 from init_test_data import init_all_test_data
 
 
@@ -65,9 +66,12 @@ def custom_openapi():
         {"path": "/applications/{application_id}", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/applications/{application_id}/update", "method": "put", "security": [{"Bearer": []}]},
         {"path": "/applications/{application_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
-        {"path": "/admin/applications", "method": "get", "security": [{"Bearer": []}]},
-        {"path": "/admin/applications/{application_id}/update", "method": "put", "security": [{"Bearer": []}]},
-        {"path": "/admin/admin-events", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/applications/statistics", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/my-events", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/admins/create", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/admin/admins/{max_user_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
+        {"path": "/admin/admins", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/admin/check-role", "method": "get", "security": [{"Bearer": []}]},
     ]
     
     for item in secured_paths:
@@ -91,6 +95,7 @@ app.include_router(tag_router)
 app.include_router(user_router)
 app.include_router(event_router)
 app.include_router(application_router)
+app.include_router(admin_router)
 
 
 app.add_middleware(
