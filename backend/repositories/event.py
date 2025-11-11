@@ -3,8 +3,8 @@ from models.event import EventOrm, EventTagOrm
 from models.auth import UserOrm
 from models.user_profile import UserProfileOrm
 from models.tag import TagOrm
-from schemas.event import SEventCreate, SEventUpdate
-from sqlalchemy import select, delete, update, and_, func
+from schemas.event import SEventCreate, SEventUpdate, SEventFilter
+from sqlalchemy import select, delete, update, and_, func, distinct, not_
 from sqlalchemy.exc import IntegrityError
 
 
@@ -145,8 +145,8 @@ class EventRepository:
     
     
     @classmethod
-    async def get_events_feed(cls, user_id: int, page: int, page_size: int):
-        """Получить ленту событий для пользователя с пагинацией"""
+    async def get_events_feed(cls, user_id: int, page: int, page_size: int, event_filter: SEventFilter = None):
+        """Получить ленту событий для пользователя с пагинацией и фильтрацией"""
         async with new_session() as session:
             user_profile_query = select(UserProfileOrm).where(UserProfileOrm.user_id == user_id)
             user_profile_result = await session.execute(user_profile_query)
@@ -162,6 +162,26 @@ class EventRepository:
             )
             
             count_query = select(func.count()).select_from(EventOrm).where(EventOrm.city_id == user_profile.city_id)
+            
+            if event_filter:
+                if event_filter.include_tags:
+                    events_with_include_tags = (
+                        select(EventTagOrm.event_id)
+                        .where(EventTagOrm.tag_id.in_(event_filter.include_tags))
+                        .distinct()
+                    )
+                    base_query = base_query.where(EventOrm.id.in_(events_with_include_tags))
+                    count_query = count_query.where(EventOrm.id.in_(events_with_include_tags))
+                
+                if event_filter.exclude_tags:
+                    events_with_exclude_tags = (
+                        select(EventTagOrm.event_id)
+                        .where(EventTagOrm.tag_id.in_(event_filter.exclude_tags))
+                        .distinct()
+                    )
+                    base_query = base_query.where(not_(EventOrm.id.in_(events_with_exclude_tags)))
+                    count_query = count_query.where(not_(EventOrm.id.in_(events_with_exclude_tags)))
+            
             total_count_result = await session.execute(count_query)
             total_count = total_count_result.scalar()
             

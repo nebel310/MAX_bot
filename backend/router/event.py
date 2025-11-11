@@ -3,7 +3,7 @@ from repositories.event import EventRepository
 from repositories.user import UserProfileRepository
 from schemas.event import (
     SEventCreate, SEventUpdate, SEventWithTags, 
-    SEventWithMatch, SEventFeedResponse, SEventListResponse
+    SEventWithMatch, SEventFeedResponse, SEventListResponse, SEventFilter
 )
 from models.auth import UserOrm
 from utils.security import get_current_user
@@ -55,12 +55,33 @@ async def create_event(
 async def get_events_feed(
     page: int = Query(1, ge=1, description="Номер страницы"),
     page_size: int = Query(20, ge=1, le=100, description="Размер страницы"),
+    include_tags: str = Query(None, description="ID тегов для включения (через запятую)"),
+    exclude_tags: str = Query(None, description="ID тегов для исключения (через запятую)"),
     current_user: UserOrm = Depends(get_current_user)
 ):
-    """Получить ленту событий с пагинацией и процентом совпадения"""
+    """Получить ленту событий с пагинацией, процентом совпадения и фильтрацией
+    
+    Фильтрация по тегам:
+    - include_tags: показывать события, которые имеют ХОТЯ БЫ ОДИН из указанных тегов
+    - exclude_tags: НЕ показывать события, которые имеют ХОТЯ БЫ ОДИН из указанных тегов
+    
+    Примеры использования:
+    - /events/feed?include_tags=1,2,3 - события с тегами 1, 2 или 3
+    - /events/feed?exclude_tags=4,5 - события без тегов 4 и 5  
+    - /events/feed?include_tags=1,2&exclude_tags=3 - события с тегами 1 или 2, но без тега 3
+    - /events/feed - все события города пользователя (без фильтрации)
+    """
     try:
+        event_filter = None
+        if include_tags or exclude_tags:
+            event_filter = SEventFilter()
+            if include_tags:
+                event_filter.include_tags = [int(tag_id.strip()) for tag_id in include_tags.split(",")]
+            if exclude_tags:
+                event_filter.exclude_tags = [int(tag_id.strip()) for tag_id in exclude_tags.split(",")]
+        
         events_with_details, total_count = await EventRepository.get_events_feed(
-            current_user.id, page, page_size
+            current_user.id, page, page_size, event_filter
         )
         
         events_with_match = []

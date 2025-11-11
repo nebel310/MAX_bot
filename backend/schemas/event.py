@@ -140,3 +140,14 @@ class SEventListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class SEventFilter(BaseModel):
+    include_tags: Optional[List[int]] = Field(
+        None,
+        description="Список ID тегов для включения (события должны иметь хотя бы один из этих тегов)"
+    )
+    exclude_tags: Optional[List[int]] = Field(
+        None,
+        description="Список ID тегов для исключения (события не должны иметь ни одного из этих тегов)"
+    )
