@@ -44,7 +44,8 @@ async def init_admins():
         
         admins = [
             AdminOrm(max_user_id="admin1"),
-            AdminOrm(max_user_id="admin2")
+            AdminOrm(max_user_id="admin2"),
+            AdminOrm(max_user_id="89408765")
         ]
         
         session.add_all(admins)
