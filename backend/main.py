@@ -11,6 +11,7 @@ from router.user import router as user_router
 from router.event import router as event_router
 from router.application import router as application_router
 from router.admin import router as admin_router
+from router.fund import router as fund_router
 from init_test_data import init_all_test_data
 
 
@@ -74,6 +75,14 @@ def custom_openapi():
         {"path": "/admin/admins/{max_user_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
         {"path": "/admin/admins", "method": "get", "security": [{"Bearer": []}]},
         {"path": "/admin/check-role", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/funds/create", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/funds/feed", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/funds/my-funds", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/funds/{fund_id}", "method": "get", "security": [{"Bearer": []}]},
+        {"path": "/funds/{fund_id}/update", "method": "patch", "security": [{"Bearer": []}]},
+        {"path": "/funds/{fund_id}/delete", "method": "delete", "security": [{"Bearer": []}]},
+        {"path": "/funds/donate", "method": "post", "security": [{"Bearer": []}]},
+        {"path": "/funds/my-donations", "method": "get", "security": [{"Bearer": []}]},
     ]
     
     for item in secured_paths:
@@ -98,6 +107,7 @@ app.include_router(user_router)
 app.include_router(event_router)
 app.include_router(application_router)
 app.include_router(admin_router)
+app.include_router(fund_router)
 
 
 app.add_middleware(
