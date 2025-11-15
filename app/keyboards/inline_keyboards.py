@@ -38,6 +38,7 @@ def profile_keyboard() -> aiomax.buttons.KeyboardBuilder:
     )
     kb.row(
         aiomax.buttons.CallbackButton(text="Редактировать профиль", payload="edit_profile"),
+        aiomax.buttons.CallbackButton(text="Мои отклики", payload="my_applications"),
     )
     return kb
 
@@ -143,6 +144,15 @@ def application_moderation_keyboard(application_id: int) -> aiomax.buttons.Keybo
     )
     return kb
 
+def my_applications_return_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура возврата из списка собственных откликов."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Профиль", payload="profile"),
+        aiomax.buttons.CallbackButton(text="Главное меню", payload="back_to_main_menu"),
+    )
+    return kb
+
 __all__ = [
     "role_selection_keyboard", 
     "volunteer_main_menu_keyboard", 
@@ -157,4 +167,5 @@ __all__ = [
     ,"admin_event_created_keyboard"
     ,"admin_help_keyboard"
     ,"application_moderation_keyboard"
+    ,"my_applications_return_keyboard"
 ]

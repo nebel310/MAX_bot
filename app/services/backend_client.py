@@ -420,4 +420,45 @@ class BackendClient:
             logger.error("Update application failed: invalid JSON application_id=%s error=%s", application_id, e_json)
             return None
 
+    # ===== Волонтёр: мои отклики =====
+    async def get_my_applications(
+        self,
+        token: str,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> dict | None:
+        """Получить собственные отклики текущего пользователя.
+
+        Эндпоинт: /applications/my-applications -> SApplicationListResponse
+        Формат ожидаемого ответа: {
+          "applications": [SApplicationWithEvent...],
+          "total_count": int,
+          ...
+        }
+        Возвращаем dict или None при ошибке.
+        """
+        params = {"page": str(page), "page_size": str(page_size)}
+        resp = await self._client.get(
+            "/applications/my-applications",
+            params=params,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if resp.status_code >= 400:
+            try:
+                err = resp.json()
+            except Exception:
+                err = resp.text
+            logger.error(
+                "Get my applications failed: status=%s params=%s error=%s",
+                resp.status_code,
+                params,
+                err,
+            )
+            return None
+        try:
+            return resp.json()
+        except Exception as e_json:
+            logger.error("Get my applications failed: invalid JSON error=%s", e_json)
+            return None
+
 backend_client = BackendClient()

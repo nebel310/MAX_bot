@@ -37,6 +37,7 @@ from app.keyboards.inline_keyboards import (
     admin_event_created_keyboard,
     admin_help_keyboard,
     application_moderation_keyboard,
+    my_applications_return_keyboard,
 )
 from app.states import VolunteerStates, HelpRequestStates, CommonStates, AdminStates
 from app.services.role_stub import get_role, set_role, MOCK_FEED_MESSAGE, MOCK_REQUEST_DETAILS
@@ -661,6 +662,60 @@ def setup_handlers(bot: aiomax.Bot) -> None:
         # Состояние — остаёмся в MAIN_MENU для универсальных кнопок
         cb.bot.storage.change_state(cb.user_id, VolunteerStates.MAIN_MENU)
         await _render_profile(cb.user_id, lambda text, keyboard=None: cb.send(text, keyboard=keyboard))
+
+    # --- мои отклики (волонтёр) ---
+    @bot.on_button_callback(lambda d: d.payload == "my_applications")
+    async def _my_applications(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
+        token = get_session_token(cb.user_id)
+        kb_return = my_applications_return_keyboard()
+        if not token:
+            await cb.send("⚠️ Нет активной сессии. /start и повторите.", keyboard=kb_return)
+            return
+        resp = None
+        try:
+            resp = await backend_client.get_my_applications(token, page=1, page_size=10)
+        except Exception as e_myapps:
+            logger.warning("Get my applications failed user_id=%s error=%s", cb.user_id, e_myapps)
+        applications = []
+        if resp and isinstance(resp, dict):
+            applications = resp.get("applications") or []
+        if not applications:
+            await cb.send("😕 У вас пока нет откликов.", keyboard=kb_return)
+            return
+        status_map = {
+            "pending": "⏳ В ожидании",
+            "approved": "✅ Принят",
+            "rejected": "🚫 Отклонён",
+            "participated": "🎉 Участвовал",
+        }
+        for app in applications:
+            event_id = app.get("event_id")
+            event_title = app.get("event_title") or "—"
+            if len(event_title) > 60:
+                event_title = event_title[:57] + "…"
+            event_date = app.get("event_date") or "—"
+            event_address = app.get("event_address") or "—"
+            status_raw = app.get("status") or "unknown"
+            status_local = status_map.get(status_raw, "❔ Неизвестный")
+            rejection_reason = app.get("rejection_reason") or "—"
+            applied_at = app.get("applied_at") or "—"
+            reason_line = ""
+            if status_raw == "rejected":
+                reason_line = f"🚫 Причина: {rejection_reason}\n"
+            text = (
+                "📨 Мой отклик\n"
+                "────────────────\n"
+                f"🧷 ID события: {event_id}\n"
+                f"📝 Название: {event_title}\n"
+                f"🕒 Дата: {event_date}\n"
+                f"📍 Адрес: {event_address}\n"
+                f"📌 Статус: {status_local}\n"
+                f"{reason_line}"
+                f"🕒 Отклик: {applied_at}\n"
+                "────────────────"
+            )
+            await cb.send(text)
+        await cb.send("📑 Все отклики показаны.", keyboard=kb_return)
 
     # --- помощь (универсальная кнопка) ---
     @bot.on_button_callback(lambda d: d.payload == "help")
