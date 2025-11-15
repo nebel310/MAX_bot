@@ -36,6 +36,7 @@ from app.keyboards.inline_keyboards import (
     admin_fund_main_keyboard,
     admin_event_created_keyboard,
     admin_help_keyboard,
+    application_moderation_keyboard,
 )
 from app.states import VolunteerStates, HelpRequestStates, CommonStates, AdminStates
 from app.services.role_stub import get_role, set_role, MOCK_FEED_MESSAGE, MOCK_REQUEST_DETAILS
@@ -846,9 +847,98 @@ def setup_handlers(bot: aiomax.Bot) -> None:
                 f"🕒 Дата отклика: {applied_at}\n"
                 "────────────────"
             )
-            await msg.reply(text)
+            if status == "pending":
+                kb_mod = application_moderation_keyboard(app_id)
+                await msg.reply(text + "\nВыберите действие:", keyboard=kb_mod)
+            else:
+                await msg.reply(text)
         msg.bot.storage.change_state(msg.user_id, CommonStates.IDLE)
         await msg.reply("📑 Все отклики показаны. Вы можете вернуться в меню.", keyboard=kb_back)
+
+    # ===== Модерация отклика: принять =====
+    @bot.on_button_callback(lambda d: d.payload.startswith("app_approve_"))
+    async def _application_approve(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
+        token = get_session_token(cb.user_id)
+        if not token:
+            await cb.send("⚠️ Нет активной сессии. /start и повторите.")
+            return
+        try:
+            app_id_str = cb.payload.replace("app_approve_", "")
+            if not app_id_str.isdigit():
+                await cb.send("❌ Некорректный ID отклика.")
+                return
+            app_id = int(app_id_str)
+        except Exception:
+            await cb.send("❌ Ошибка разбора ID отклика.")
+            return
+        updated = None
+        try:
+            updated = await backend_client.update_application(token, app_id, status="approved")
+        except Exception as e_up:
+            logger.warning("Approve application failed user_id=%s app_id=%s error=%s", cb.user_id, app_id, e_up)
+        kb = admin_fund_main_keyboard()
+        if not updated:
+            await cb.send("❌ Не удалось подтвердить отклик. Попробуйте позже.", keyboard=kb)
+            return
+        await cb.send(
+            "✅ Отклик подтверждён! Волонтёр может участвовать. Возврат в меню:",
+            keyboard=kb,
+        )
+
+    # ===== Модерация отклика: инициировать отказ =====
+    _PENDING_REJECTION_APP: dict[int, int] = {}
+
+    @bot.on_button_callback(lambda d: d.payload.startswith("app_reject_"))
+    async def _application_reject_init(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
+        token = get_session_token(cb.user_id)
+        if not token:
+            await cb.send("⚠️ Нет активной сессии. /start и повторите.")
+            return
+        app_id_str = cb.payload.replace("app_reject_", "")
+        if not app_id_str.isdigit():
+            await cb.send("❌ Некорректный ID отклика.")
+            return
+        app_id = int(app_id_str)
+        _PENDING_REJECTION_APP[cb.user_id] = app_id
+        cb.bot.storage.change_state(cb.user_id, AdminStates.WAIT_APPLICATION_REJECTION_REASON)
+        await cb.send(
+            "✏️ Введите причину отказа одним сообщением (кратко). Например: недостаточно опыта."
+        )
+
+    # ===== Модерация отклика: ввод причины отказа =====
+    @bot.on_message(is_state(AdminStates.WAIT_APPLICATION_REJECTION_REASON))
+    async def _application_reject_reason(msg: aiomax.Message, cursor: aiomax.FSMCursor):
+        reason_raw = (getattr(msg, "text", None) or getattr(msg, "content", "") or "").strip()
+        if not reason_raw:
+            await msg.reply("⚠️ Пусто. Введите причину отказа.")
+            return
+        app_id = _PENDING_REJECTION_APP.get(msg.user_id)
+        if app_id is None:
+            msg.bot.storage.change_state(msg.user_id, CommonStates.IDLE)
+            kb = admin_fund_main_keyboard()
+            await msg.reply("⚠️ ID отклика потерян. Начните заново через просмотр откликов.", keyboard=kb)
+            return
+        token = get_session_token(msg.user_id)
+        if not token:
+            kb = admin_fund_main_keyboard()
+            await msg.reply("⚠️ Нет активной сессии. /start и повторите.", keyboard=kb)
+            return
+        updated = None
+        try:
+            updated = await backend_client.update_application(token, app_id, status="rejected", rejection_reason=reason_raw)
+        except Exception as e_up:
+            logger.warning("Reject application failed user_id=%s app_id=%s error=%s", msg.user_id, app_id, e_up)
+        kb = admin_fund_main_keyboard()
+        if not updated:
+            msg.bot.storage.change_state(msg.user_id, CommonStates.IDLE)
+            await msg.reply("❌ Не удалось отклонить отклик. Попробуйте позже.", keyboard=kb)
+            return
+        _PENDING_REJECTION_APP.pop(msg.user_id, None)
+        msg.bot.storage.change_state(msg.user_id, CommonStates.IDLE)
+        await msg.reply(
+            "🚫 Отклик отклонён. Причина сохранена. Возврат в меню:",
+            keyboard=kb,
+        )
 
     @bot.on_button_callback(lambda d: d.payload == "admin_create_event")
     async def _admin_create_event(cb: aiomax.Callback, cursor: aiomax.FSMCursor):

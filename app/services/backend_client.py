@@ -1,4 +1,5 @@
 import os, httpx, logging
+from typing import Any
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3001")
 
@@ -384,5 +385,39 @@ class BackendClient:
             logger.error("Get event applications failed: invalid JSON event_id=%s", event_id)
             return None
         return data
+
+    # ===== Админ: модерация отклика =====
+    async def update_application(self, token: str, application_id: int, status: str, rejection_reason: str | None = None) -> dict | None:
+        """Обновить статус отклика (approved / rejected) с опциональной причиной.
+
+        Эндпоинт: PUT /applications/{application_id}/update
+        Схема: SApplicationUpdate { status: str, rejection_reason?: str|null }
+        """
+        payload: dict[str, Any] = {"status": status}
+        if rejection_reason is not None and rejection_reason.strip():
+            payload["rejection_reason"] = rejection_reason.strip()
+        resp = await self._client.put(
+            f"/applications/{application_id}/update",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if resp.status_code >= 400:
+            try:
+                err = resp.json()
+            except Exception:
+                err = resp.text
+            logger.error(
+                "Update application failed: application_id=%s status_field=%s status=%s error=%s",
+                application_id,
+                status,
+                resp.status_code,
+                err,
+            )
+            return None
+        try:
+            return resp.json()
+        except Exception as e_json:
+            logger.error("Update application failed: invalid JSON application_id=%s error=%s", application_id, e_json)
+            return None
 
 backend_client = BackendClient()

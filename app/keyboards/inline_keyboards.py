@@ -134,6 +134,15 @@ def admin_help_keyboard() -> aiomax.buttons.KeyboardBuilder:
     )
     return kb
 
+def application_moderation_keyboard(application_id: int) -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура модерации отклика (approve / reject)."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="✅ Принять", payload=f"app_approve_{application_id}"),
+        aiomax.buttons.CallbackButton(text="🚫 Отклонить", payload=f"app_reject_{application_id}"),
+    )
+    return kb
+
 __all__ = [
     "role_selection_keyboard", 
     "volunteer_main_menu_keyboard", 
@@ -147,4 +156,5 @@ __all__ = [
     ,"admin_fund_main_keyboard"
     ,"admin_event_created_keyboard"
     ,"admin_help_keyboard"
+    ,"application_moderation_keyboard"
 ]
