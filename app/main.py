@@ -3,12 +3,17 @@ import logging
 from pathlib import Path
 import aiomax
 
-try:
-    # Preferred relative import when package context is known (python -m app.main)
-    from .handlers import setup_handlers  # type: ignore
-except ImportError:
-    # Fallback for direct script execution (python app/main.py)
+# Support both `python -m app.main` (package context) and `python app/main.py` (script execution)
+if __package__ is None or __package__ == "":
+    # Script execution: ensure project root on sys.path then absolute import
+    import sys
+    project_root = Path(__file__).resolve().parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
     from app.handlers import setup_handlers  # type: ignore
+else:
+    # Package execution: use relative import
+    from .handlers import setup_handlers  # type: ignore
 
 
 def _load_env_from_file() -> None:
