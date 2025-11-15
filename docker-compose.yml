@@ -32,17 +32,18 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-  
-# frontend:
-#   build: ./frontend
-#   container_name: max_frontend
-#   ports:
-#     - "5500:5500"  # !!! ВНИМАНИЕ: Порт может измениться
-#   volumes:
-#     - ./frontend:/app
-#   depends_on:
-#     - backend  # Зависит от сервера (FastAPI)
 
+  app:
+    build: ./app
+    container_name: max_bot
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BACKEND_URL=http://backend:3001
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      - backend
+    volumes:
+      - ./app:/app
 
 volumes:
   postgres_data:
