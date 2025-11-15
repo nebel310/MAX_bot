@@ -3,7 +3,12 @@ import logging
 from pathlib import Path
 import aiomax
 
-from .handlers import *  # python -m app.main
+try:
+    # Preferred relative import when package context is known (python -m app.main)
+    from .handlers import setup_handlers  # type: ignore
+except ImportError:
+    # Fallback for direct script execution (python app/main.py)
+    from app.handlers import setup_handlers  # type: ignore
 
 
 def _load_env_from_file() -> None:
