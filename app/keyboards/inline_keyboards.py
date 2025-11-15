@@ -21,10 +21,41 @@ def volunteer_main_menu_keyboard() -> aiomax.buttons.KeyboardBuilder:
     kb = aiomax.buttons.KeyboardBuilder()
     kb.row(
         aiomax.buttons.CallbackButton(text="Лента заявок", payload="feed"),
+        aiomax.buttons.CallbackButton(text="Лента фондов", payload="funds"),
     )
     kb.row(
         aiomax.buttons.CallbackButton(text="Мой профиль", payload="profile"),
         aiomax.buttons.CallbackButton(text="Помощь", payload="help"),
+    )
+    return kb
+
+def profile_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура при просмотре профиля: лента, помощь, редактирование."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Лента заявок", payload="feed"),
+        aiomax.buttons.CallbackButton(text="Помощь", payload="help"),
+    )
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Редактировать профиль", payload="edit_profile"),
+    )
+    return kb
+
+def event_item_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура под отдельным событием в ленте: отклик / назад."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Откликнуться", payload="respond"),
+        aiomax.buttons.CallbackButton(text="Назад", payload="back_to_main_menu"),
+    )
+    return kb
+
+def fund_item_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура под отдельным фондом: пожертвовать / назад."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Пожертвовать", payload="donate"),
+        aiomax.buttons.CallbackButton(text="Назад", payload="back_to_main_menu"),
     )
     return kb
 
@@ -37,6 +68,9 @@ def feed_actions_keyboard() -> aiomax.buttons.KeyboardBuilder:
     kb.row(
         aiomax.buttons.CallbackButton(text="Изменить фильтры", payload="change_filters"),
         aiomax.buttons.CallbackButton(text="Изменить город", payload="change_city"),
+    )
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Назад", payload="back_to_main_menu"),
     )
     return kb
 
@@ -59,10 +93,45 @@ def response_confirmation_keyboard() -> aiomax.buttons.KeyboardBuilder:
     )
     return kb
 
+def donation_confirmation_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура после успешного доната."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="К фондам", payload="back_to_funds"),
+        aiomax.buttons.CallbackButton(text="Главное меню", payload="back_to_main_menu"),
+    )
+    return kb
+
+def admin_fund_main_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Главное меню администратора фондов после регистрации фонда."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Получить отклики на событие", payload="admin_event_applications"),
+    )
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Создать новое событие", payload="admin_create_event"),
+        aiomax.buttons.CallbackButton(text="Помощь", payload="help"),
+    )
+    return kb
+
+def admin_event_created_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура после успешного создания события админом."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="В главное меню", payload="admin_back_to_main"),
+    )
+    return kb
+
 __all__ = [
     "role_selection_keyboard", 
     "volunteer_main_menu_keyboard", 
+    "profile_keyboard",
+    "event_item_keyboard",
+    "fund_item_keyboard",
     "feed_actions_keyboard",
     "request_details_keyboard",
-    "response_confirmation_keyboard"
+    "response_confirmation_keyboard",
+    "donation_confirmation_keyboard"
+    ,"admin_fund_main_keyboard"
+    ,"admin_event_created_keyboard"
 ]

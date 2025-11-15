@@ -2,7 +2,7 @@ import os
 import logging
 import aiomax
 
-from app.handlers import setup_handlers
+from .handlers import *  # python -m app.main
 
 
 def create_bot() -> aiomax.Bot:
