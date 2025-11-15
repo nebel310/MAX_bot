@@ -461,4 +461,48 @@ class BackendClient:
             logger.error("Get my applications failed: invalid JSON error=%s", e_json)
             return None
 
+    # ===== Лидерборд волонтёров =====
+    async def get_leaderboard(
+        self,
+        token: str,
+        top_n: int = 10,
+    ) -> dict | None:
+        """Получить лидерборд (топ пользователей + позиция текущего).
+
+        Эндпоинт: /user/leaderboard -> SLeaderboard
+        Параметры: top_n (1..100)
+        Ожидаемый формат ответа:
+        {
+          "top_users": [
+             {"user_id": int, "username": str, "rating": int, "participation_count": int, "position": int},
+             ...
+          ],
+          "current_user_position": { ... } | null
+        }
+        Возвращаем dict или None при ошибке.
+        """
+        params = {"top_n": str(top_n)}
+        resp = await self._client.get(
+            "/user/leaderboard",
+            params=params,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if resp.status_code >= 400:
+            try:
+                err = resp.json()
+            except Exception:
+                err = resp.text
+            logger.error(
+                "Get leaderboard failed: status=%s params=%s error=%s",
+                resp.status_code,
+                params,
+                err,
+            )
+            return None
+        try:
+            return resp.json()
+        except Exception as e_json:
+            logger.error("Get leaderboard failed: invalid JSON error=%s", e_json)
+            return None
+
 backend_client = BackendClient()

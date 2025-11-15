@@ -40,6 +40,9 @@ def profile_keyboard() -> aiomax.buttons.KeyboardBuilder:
         aiomax.buttons.CallbackButton(text="Редактировать профиль", payload="edit_profile"),
         aiomax.buttons.CallbackButton(text="Мои отклики", payload="my_applications"),
     )
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Лидерборд", payload="leaderboard"),
+    )
     return kb
 
 def event_item_keyboard() -> aiomax.buttons.KeyboardBuilder:

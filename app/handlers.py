@@ -717,6 +717,50 @@ def setup_handlers(bot: aiomax.Bot) -> None:
             await cb.send(text)
         await cb.send("📑 Все отклики показаны.", keyboard=kb_return)
 
+    # --- лидерборд волонтёров ---
+    @bot.on_button_callback(lambda d: d.payload == "leaderboard")
+    async def _leaderboard(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
+        token = get_session_token(cb.user_id)
+        kb_return = my_applications_return_keyboard()
+        if not token:
+            await cb.send("⚠️ Нет активной сессии. /start и повторите.", keyboard=kb_return)
+            return
+        resp = None
+        try:
+            resp = await backend_client.get_leaderboard(token, top_n=10)
+        except Exception as e_lb:
+            logger.warning("Get leaderboard failed user_id=%s error=%s", cb.user_id, e_lb)
+        if not resp or not isinstance(resp, dict):
+            await cb.send("❌ Не удалось получить лидерборд.", keyboard=kb_return)
+            return
+        top_users = resp.get("top_users") or []
+        current_user_item = resp.get("current_user_position") or None
+        if not top_users:
+            await cb.send("😕 Лидерборд пока пуст.", keyboard=kb_return)
+            return
+        # Форматируем список
+        lines: list[str] = ["🏆 Лидерборд волонтёров", ""]
+        medal_map = {1: "🥇", 2: "🥈", 3: "🥉"}
+        user_ids_in_top = {u.get("user_id") for u in top_users}
+        for u in top_users:
+            pos = u.get("position") or 0
+            username = u.get("username") or "—"
+            rating = u.get("rating") or 0
+            part_count = u.get("participation_count") or 0
+            prefix = medal_map.get(pos, f"{pos}.")
+            suffix = ""
+            if current_user_item and current_user_item.get("user_id") == u.get("user_id"):
+                suffix = " ← Вы"
+            lines.append(f"{prefix} @{username} — {rating} очков • участий: {part_count}{suffix}")
+        if current_user_item and current_user_item.get("user_id") not in user_ids_in_top:
+            lines.append("")
+            lines.append(
+                f"🔸 Вы на {current_user_item.get('position')} месте — {current_user_item.get('rating')} очков • участий: {current_user_item.get('participation_count')}"
+            )
+        lines.append("")
+        lines.append("Показаны топ-10. Активируйте участие — поднимайтесь выше!")
+        await cb.send("\n".join(lines), keyboard=kb_return)
+
     # --- помощь (универсальная кнопка) ---
     @bot.on_button_callback(lambda d: d.payload == "help")
     async def _help_from_any(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
