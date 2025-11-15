@@ -35,6 +35,7 @@ from app.keyboards.inline_keyboards import (
     donation_confirmation_keyboard,
     admin_fund_main_keyboard,
     admin_event_created_keyboard,
+    admin_help_keyboard,
 )
 from app.states import VolunteerStates, HelpRequestStates, CommonStates, AdminStates
 from app.services.role_stub import get_role, set_role, MOCK_FEED_MESSAGE, MOCK_REQUEST_DETAILS
@@ -93,6 +94,7 @@ _RETURN_TO_FEED: dict[int, bool] = {}
 _RETURN_TO_PROFILE: dict[int, bool] = {}
 _FUND_FEED_CACHE: dict[int, dict[int, dict]] = {}  # user_id -> {fund_id: fund_dict}
 _SELECTED_FUND: dict[int, int] = {}  # user_id -> fund_id (для доната)
+_PENDING_EVENT_DATA: dict[int, dict] = {}  # временное хранение данных события до ввода города
 
 def _set_return_to_feed(user_id: int) -> None:
     _RETURN_TO_FEED[user_id] = True
@@ -662,18 +664,48 @@ def setup_handlers(bot: aiomax.Bot) -> None:
     # --- помощь (универсальная кнопка) ---
     @bot.on_button_callback(lambda d: d.payload == "help")
     async def _help_from_any(cb: aiomax.Callback, cursor: aiomax.FSMCursor):
-        cb.bot.storage.change_state(cb.user_id, VolunteerStates.MAIN_MENU)
-        kb = volunteer_main_menu_keyboard()
+        role = get_role(cb.user_id)
+        # Волонтёр
+        if role == "want_help":
+            cb.bot.storage.change_state(cb.user_id, VolunteerStates.MAIN_MENU)
+            kb = volunteer_main_menu_keyboard()
+            await cb.send(
+                "ℹ️ Помощь волонтёру\n"
+                "────────────────\n"
+                "• Лента заявок — мероприятия вашего города.\n"
+                "• Отклик — нажмите 'Откликнуться' в карточке события.\n"
+                "• Лента фондов — поддержите фонд и получите рейтинг.\n"
+                "• Профиль — обновите город и интересы для релевантных событий.\n"
+                "• Изменить город/интересы — кнопки в ленте.\n"
+                "• Рейтинг растёт за участие и донаты.\n"
+                "────────────────\n"
+                "Если что-то пошло не так — /start перезапустит интерфейс.",
+                keyboard=kb,
+            )
+            return
+        # Админ / создатель фонда
+        if role == "need_help":
+            cb.bot.storage.change_state(cb.user_id, CommonStates.IDLE)
+            kb = admin_help_keyboard()
+            await cb.send(
+                "ℹ️ Помощь администратора фонда\n"
+                "────────────────\n"
+                "• Создать событие — одна кнопка, отправьте 7 строк по формату.\n"
+                "• Отклики — получите список ваших событий и затем ID для просмотра заявок.\n"
+                "• Подтверждение участия — (будет добавлено) для начисления рейтинга волонтёрам.\n"
+                "• Несколько фондов — выберите снова 'Нужна помощь' для регистрации ещё одного.\n"
+                "• Город — если отсутствует, вводится при создании события.\n"
+                "• Теги — точные теги повышают совпадение и интерес волонтёров.\n"
+                "────────────────\n"
+                "Выберите действие ниже или вернитесь назад.",
+                keyboard=kb,
+            )
+            return
+        # Нет роли
+        kb = role_selection_keyboard()
         await cb.send(
-            "ℹ️ Помощь по навигации:\n"
-            "────────────────────\n"
-            "• 'Лента заявок' — мероприятия вашего города.\n"
-            "• 'Лента фондов' — просмотреть фонды или пожертвовать.\n"
-            "• 'Редактировать профиль' — обновить город или интересы.\n"
-            "• Создание фонда: выберите 'Нужна помощь' и следуйте формату.\n"
-            "────────────────────\n"
-            "Если что-то пошло не так — попробуйте /start.",
-            keyboard=kb
+            "⚠️ Роль не выбрана. Пожалуйста, выберите роль для продолжения.",
+            keyboard=kb,
         )
 
     # --- админ заглушки ---
@@ -891,7 +923,20 @@ def setup_handlers(bot: aiomax.Bot) -> None:
         except Exception as e_prof:
             logger.warning("Profile fetch for event create failed user_id=%s error=%s", msg.user_id, e_prof)
         if city_id is None:
-            await msg.reply("❌ Укажите город в профиле прежде чем создавать событие (через редактирование профиля).")
+            # Сохраняем распарсенные данные и просим ввести город прямо сейчас
+            _PENDING_EVENT_DATA[msg.user_id] = {
+                "title": title,
+                "description": description,
+                "address": address,
+                "contact": contact,
+                "what_to_do": what_to_do,
+                "date_iso": date_iso,
+                "tag_ids": tag_ids,
+            }
+            msg.bot.storage.change_state(msg.user_id, AdminStates.WAIT_EVENT_CITY)
+            await msg.reply(
+                f"🏙️ У вашего профиля не указан город. Введите название города одним сообщением.\n{CITY_PROMPT_SUFFIX}\nНапример: Москва"
+            )
             return
 
         payload = {
@@ -916,6 +961,86 @@ def setup_handlers(bot: aiomax.Bot) -> None:
         kb_done = admin_event_created_keyboard()
         await msg.reply(
             "🎉 Мероприятие создано!\n"
+            f"🧷 ID: {created.get('id')}\n"
+            f"📝 Название: {created.get('title')}\n"
+            f"📍 Адрес: {created.get('address')}\n"
+            f"🕒 Дата: {created.get('date')}\n"
+            "Спасибо за создание. Возврат в меню:",
+            keyboard=kb_done,
+        )
+
+    # --- ввод города в процессе создания события ---
+    @bot.on_message(is_state(AdminStates.WAIT_EVENT_CITY))
+    async def _admin_event_city(msg: aiomax.Message, cursor: aiomax.FSMCursor):
+        raw_city = (getattr(msg, "text", None) or getattr(msg, "content", "") or "").strip()
+        if not raw_city:
+            await msg.reply(f"⚠️ Пусто. Введите название города.\n{CITY_PROMPT_SUFFIX}")
+            return
+        token = get_session_token(msg.user_id)
+        if not token:
+            await msg.reply("⚠️ Нет активной сессии. /start и повторите.")
+            return
+        matched_city = None
+        try:
+            cities = await backend_client.get_cities(page=1, page_size=MAX_CITIES_PAGE_SIZE)
+            lowered = raw_city.lower()
+            for c in cities:
+                name = (c.get("name") or "").strip()
+                if name.lower() == lowered:
+                    matched_city = c
+                    break
+        except Exception as e_cities:
+            logger.warning("Admin event city: fetch cities failed user_id=%s error=%s", msg.user_id, e_cities)
+        if not matched_city:
+            await msg.reply(f"❌ Город не найден. Допустимые: {CITY_PROMPT_SUFFIX}")
+            return
+        city_id = matched_city.get("id")
+        city_name = matched_city.get("name") or raw_city
+        saved_ok = True
+        try:
+            # ensure profile exists then patch
+            try:
+                await backend_client.get_user_profile(token)
+            except Exception as e_prof_init:
+                logger.warning("Admin event city: profile init failed user_id=%s error=%s", msg.user_id, e_prof_init)
+            res_profile = await backend_client.update_user_profile_city(token, city_id)
+            if res_profile is None:
+                saved_ok = False
+        except Exception as e_save_city:
+            logger.warning("Admin event city: update failed user_id=%s city_id=%s error=%s", msg.user_id, city_id, e_save_city)
+            saved_ok = False
+        if not saved_ok:
+            await msg.reply("❌ Не удалось сохранить город. Попробуйте снова или позже.")
+            return
+        data = _PENDING_EVENT_DATA.pop(msg.user_id, None)
+        if not data:
+            msg.bot.storage.change_state(msg.user_id, VolunteerStates.MAIN_MENU)
+            await msg.reply("⚠️ Данные мероприятия потеряны. Начните создание снова через 'Создать новое событие'.")
+            return
+        payload = {
+            "title": data["title"],
+            "description": data["description"],
+            "address": data["address"],
+            "contact": data["contact"],
+            "what_to_do": data["what_to_do"],
+            "date": data["date_iso"],
+            "city_id": city_id,
+            "tag_ids": data["tag_ids"],
+        }
+        created = None
+        try:
+            created = await backend_client.create_event(token, payload)
+        except Exception as e_ce_final:
+            logger.warning("Create event (after city) failed user_id=%s error=%s", msg.user_id, e_ce_final)
+        if not created:
+            msg.bot.storage.change_state(msg.user_id, VolunteerStates.MAIN_MENU)
+            await msg.reply("❌ Не удалось создать мероприятие после сохранения города. Попробуйте снова.")
+            return
+        msg.bot.storage.change_state(msg.user_id, CommonStates.IDLE)
+        kb_done = admin_event_created_keyboard()
+        await msg.reply(
+            "🎉 Мероприятие создано!\n"
+            f"🏙️ Город: {city_name}\n"
             f"🧷 ID: {created.get('id')}\n"
             f"📝 Название: {created.get('title')}\n"
             f"📍 Адрес: {created.get('address')}\n"
@@ -972,19 +1097,34 @@ def setup_handlers(bot: aiomax.Bot) -> None:
             await msg.reply("❌ Недостаточно строк. Нужно 7: Название, Описание, Реквизиты, Целевая_сумма, Рейтинг_за_100, Дата, Теги.")
             return
         title, description, requisites, target_raw, rating_raw, end_date_raw, tags_raw = parts[:7]
+        # Санитизация числовых значений: удаляем пробелы, нецифровые разделители (на случай '100 000' или '100 000')
+        def _clean_number(s: str) -> str:
+            return "".join(ch for ch in s if ch.isdigit())
+        original_target = target_raw
+        original_rating = rating_raw
+        target_raw = _clean_number(target_raw)
+        rating_raw = _clean_number(rating_raw)
+        if not target_raw:
+            await msg.reply("❌ Целевая_сумма пуста или не содержит цифр. Укажите положительное число без букв.")
+            return
         try:
             target_amount = int(target_raw)
             if target_amount <= 0:
                 raise ValueError
-        except Exception:
-            await msg.reply("❌ Целевая_сумма должна быть положительным числом.")
+        except Exception as e_target:
+            logger.warning("Fund create: invalid target_amount raw='%s' cleaned='%s' user_id=%s error=%s", original_target, target_raw, msg.user_id, e_target)
+            await msg.reply("❌ Целевая_сумма должна быть положительным целым числом. Пример: 100000")
+            return
+        if not rating_raw:
+            await msg.reply("❌ Рейтинг_за_100 пуст или не содержит цифр. Пример: 1")
             return
         try:
             rating_per_100 = int(rating_raw)
             if rating_per_100 <= 0:
                 raise ValueError
-        except Exception:
-            await msg.reply("❌ Рейтинг_за_100 должен быть положительным числом.")
+        except Exception as e_rating:
+            logger.warning("Fund create: invalid rating_per_100 raw='%s' cleaned='%s' user_id=%s error=%s", original_rating, rating_raw, msg.user_id, e_rating)
+            await msg.reply("❌ Рейтинг_за_100 должен быть положительным целым числом. Пример: 1")
             return
         end_date = None
         if end_date_raw.strip() != "-":

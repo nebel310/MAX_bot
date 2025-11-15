@@ -122,6 +122,18 @@ def admin_event_created_keyboard() -> aiomax.buttons.KeyboardBuilder:
     )
     return kb
 
+def admin_help_keyboard() -> aiomax.buttons.KeyboardBuilder:
+    """Клавиатура раздела помощи для админа/создателя фондов и событий."""
+    kb = aiomax.buttons.KeyboardBuilder()
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Создать событие", payload="admin_create_event"),
+        aiomax.buttons.CallbackButton(text="Отклики на событие", payload="admin_event_applications"),
+    )
+    kb.row(
+        aiomax.buttons.CallbackButton(text="Назад", payload="admin_back_to_main"),
+    )
+    return kb
+
 __all__ = [
     "role_selection_keyboard", 
     "volunteer_main_menu_keyboard", 
@@ -134,4 +146,5 @@ __all__ = [
     "donation_confirmation_keyboard"
     ,"admin_fund_main_keyboard"
     ,"admin_event_created_keyboard"
+    ,"admin_help_keyboard"
 ]

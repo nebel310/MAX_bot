@@ -13,6 +13,7 @@ class AdminStates:
     """Состояния для админских действий (создание событий и пр.)"""
     WAIT_EVENT_INFO = "admin:wait_event_info"  # зарезервировано под будущее создание события
     WAIT_EVENT_APPS_EVENT_ID = "admin:wait_event_apps_event_id"  # ожидание ввода ID события для просмотра откликов
+    WAIT_EVENT_CITY = "admin:wait_event_city"  # ожидание ввода города, если не указан при создании события
 
 class VolunteerStates:
     """Состояния для волонтёров ('Хочу помочь')."""
